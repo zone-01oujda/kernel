@@ -1,8 +1,8 @@
 ENTRY(_start)
 
 SECTIONS {
-    /* Our bootloader loads the kernel at 0x1000 */
-    . = 0x1000;
+    /* Our bootloader loads the kernel at 0x10000 */
+    . = 0x10000;
     .text : {
         *(.text._start)
         *(.text*)

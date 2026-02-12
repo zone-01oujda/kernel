@@ -1,27 +1,30 @@
-[bits 16]                           ; 16-bit mode
-[org 0x7c00]                        ; BIOS loads us here
+[bits 16]
+[org 0x7c00]
 
-KERNEL_OFFSET equ 0x1000
+KERNEL_OFFSET equ 0x10000
 
 start:
+    xor ax, ax
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+
     mov [BOOT_DRIVE], dl           
-    mov bp, 0x9000                  ; Set up the stack (grows downwards from 0x9000)
+    mov bp, 0x9000
     mov sp, bp
 
-    mov al, 'L'                     ;'L' for Loading
+    mov al, 'L'
     call print_char
-    call load_kernel                ; Load the kernel from disk
+    call load_kernel
 
-                                    ; We're about to switch to protected mode
-    cli                             ; 1. Disable interrupts
-    lgdt [gdt_descriptor]           ; 2. Load the GDT
+    cli
+    lgdt [gdt_descriptor]
 
     mov eax, cr0
-    or eax, 0x1                     ; 3. Set PE (Protection Enable) bit
+    or eax, 0x1
     mov cr0, eax
 
-    jmp CODE_SEG:init_pm            ; 4. Far jump to 32-bit code
-
+    jmp CODE_SEG:init_pm
 
 print_char:
     mov ah, 0x0E
@@ -29,67 +32,71 @@ print_char:
     ret
 
 load_kernel:
-    mov bx, KERNEL_OFFSET           ; Destination address in RAM
-    mov dh, 2                       ; Number of sectors to read (increase this as kernel grows)
-    mov dl, [BOOT_DRIVE]            ; Use the drive the BIOS booted us from
-
-    mov ah, 0x02                    ; BIOS read sector function
-    mov al, dh                      ; Read DH sectors
-    mov ch, 0x00                    ; Cylinder 0
-    mov dh, 0x00                    ; Head 0
-    mov cl, 0x02                    ; Start reading from the second sector (Sector 1 is the bootloader)
-    int 0x13                        ; BIOS Disk Interrupt
+    mov bx, 0x1000
+    mov es, bx
+    mov bx, 0x0000
+    
+    mov dh, 2
+    mov dl, [BOOT_DRIVE]
+    mov ah, 0x02
+    mov al, dh
+    mov ch, 0x00
+    mov dh, 0x00
+    mov cl, 0x02
+    int 0x13
+    jc disk_error
     ret
+
+disk_error:
+    mov al, 'E'
+    call print_char
+    jmp $
 
 BOOT_DRIVE db 0
 
-; ================ GDT (Global Descriptor Table) ================
+; ================ GDT ================
 gdt_start:
-    dq 0x0                          ; Null descriptor - required
+    dq 0x0
 
-gdt_code:                           ; The code segment descriptor
-    dw 0xffff                       ; Limit
-    dw 0x0                          ; Base (bits 0-15)                
-    db 0x0                          ; Base bits 16-23  (middle byte)
-    db 10011010b                    ; Access byte (code, readable, privileged)
-    db 11001111b                    ; Flags
-    db 0x0                          ; Base (bits 24-31)
-
-gdt_code_64:
-    dw 0xffff                       ; Limit
-    dw 0x0                          ; Base
-    db 0x0                          ; Base
-    db 10011010b                    ; Access (Code, Readable)
-    db 00100000b                    ; Flags: L=1 (64-bit), G=0
-    db 0x0                          ; Base
-
-gdt_data:                           ; The data segment descriptor
+gdt_code:
     dw 0xffff
     dw 0x0
     db 0x0
-    db 10010010b    ; Access byte (data, writable)
+    db 10011010b
     db 11001111b
+    db 0x0
+
+gdt_data:
+    dw 0xffff
+    dw 0x0
+    db 0x0
+    db 10010010b
+    db 11001111b
+    db 0x0
+
+gdt_code_64:
+    dw 0x0000
+    dw 0x0
+    db 0x0
+    db 10011010b
+    db 00100000b
     db 0x0
 
 gdt_end:
 
 gdt_descriptor:
-    dw gdt_end - gdt_start - 1      ; Size
-    dd gdt_start               ; Address
+    dw gdt_end - gdt_start - 1
+    dd gdt_start
 
-; contants
-CODE_SEG equ gdt_code - gdt_start
-DATA_SEG equ gdt_data - gdt_start
+CODE_SEG    equ gdt_code - gdt_start
+DATA_SEG    equ gdt_data - gdt_start
 CODE_SEG_64 equ gdt_code_64 - gdt_start
 
-
-times 510-($-$$) db 0               ; 510 - (size)
-dw 0xaa55                           ; the boot Signature
-
+times 510-($-$$) db 0
+dw 0xaa55
 
 [bits 32]
 init_pm:
-                                    ; 5. Update segment registers
     mov ax, DATA_SEG
     mov ds, ax
     mov ss, ax
@@ -97,58 +104,89 @@ init_pm:
     mov fs, ax
     mov gs, ax
 
-                                    ; 6. Update stack position
     mov ebp, 0x90000
     mov esp, ebp
 
-    call BEGIN_PM                   ; Finally jump to our 32-bit entry point
+    ; DEBUG: Print '32' to show we're in 32-bit mode
+    mov dword [0xb8000], 0x0f330f32  ; '2' '3' at top
+
+    call BEGIN_PM
 
 BEGIN_PM:
-                                    ; 1. Setup Page Tables (Simplified Identity Mapping)
-                                    ; clear some memory for tables (e.g., starting at 0x10000)
-    mov edi, 0x10000                ; Table base
-    mov cr3, edi                    ; Point CPU to the table base
+    ; DEBUG: Print 'P' for Page table setup start
+    mov word [0xb8004], 0x0f50       ; 'P'
+    
+    ; Clear page tables
+    mov edi, 0x10000
+    mov cr3, edi
     xor eax, eax
     mov ecx, 4096
-    rep stosd                       ; Clear 16KB for tables
+    rep stosd
     mov edi, cr3
-
-
-                                    ; Level 4 Page Map (PML4) points to Level 3 (PDPT)
-    mov dword [edi], 0x11003        ; 0x11000 is PDPT addr | 0x3 is (Present + Writable)
-    add edi, 0x1000 
-
-                                    ; Level 3 points to Level 2 (Page Directory)
-    mov dword [edi], 0x12003        ; 0x12000 is PD addr
-    add edi, 0x1000
-
-                                    ; Level 2 points to Level 1 (Page Table) - using 2MB huge pages for simplicity
-    mov dword [edi], 0x00000083     ; 0x00000083 is physical start | 0x83 is (Huge Page + P + W)
-
-                                    ; 2. Enable PAE (Physical Address Extension) - Required for 64-bit
+    
+    ; DEBUG: Print 'C' for Cleared
+    mov word [0xb8006], 0x0f43       ; 'C'
+    
+    ; PML4 entry
+    mov eax, 0x11000
+    or eax, 3
+    mov [edi], eax
+    mov dword [edi+4], 0
+    
+    ; DEBUG: Print '4' for PML4
+    mov word [0xb8008], 0x0f34       ; '4'
+    
+    ; PDPT entry
+    mov eax, 0x12000
+    or eax, 3
+    mov [edi+0x1000], eax
+    mov dword [edi+0x1004], 0
+    
+    ; DEBUG: Print '3' for PDPT
+    mov word [0xb800a], 0x0f33       ; '3'
+    
+    ; PD entry - 2MB huge page
+    mov eax, 0x00000000
+    or eax, 0x83
+    mov [edi+0x2000], eax
+    mov dword [edi+0x2004], 0
+    
+    ; DEBUG: Print '2' for PD
+    mov word [0xb800c], 0x0f32       ; '2'
+    
+    ; Enable PAE
     mov eax, cr4
     or eax, 1 << 5
     mov cr4, eax
-
-                                    ; 3. Switch to Long Mode (EFER MSR)
-    mov ecx, 0xC0000080             ; EFER MSR
+    
+    ; DEBUG: Print 'A' for PAE
+    mov word [0xb800e], 0x0f41       ; 'A'
+    
+    ; Enable Long Mode
+    mov ecx, 0xC0000080
     rdmsr
-    or eax, 1 << 8                  ; LME (Long Mode Enable) bit
-    wrmsr   
-
-                                    ; 4. Enable Paging
+    or eax, 1 << 8
+    wrmsr
+    
+    ; DEBUG: Print 'L' for Long Mode enabled
+    mov word [0xb8010], 0x0f4c       ; 'L'
+    
+    ; Enable Paging
     mov eax, cr0
-    or eax, 1 << 31                 ; PG bit
+    or eax, 1 << 31 | 1
     mov cr0, eax
-
-                                    ; 5. Update GDT to 64-bit Code Segment
-                                    ; add a 64-bit descriptor to our GDT first!
-    lgdt [gdt_descriptor]           ; Reload GDT
+    
+    ; DEBUG: Print 'G' for Paging enabled
+    mov word [0xb8012], 0x0f47       ; 'G'
+    
+    ; Jump to 64-bit
     jmp CODE_SEG_64:long_mode_start
 
 [bits 64]
-long_mode_start:                    
-    mov byte [0xb8000], '6'
-    jmp KERNEL_OFFSET
-
-
+long_mode_start:
+    ; If we get here, print '64' in red
+    mov word [0xb8014], 0x4f36       ; '6' red on white
+    mov word [0xb8016], 0x4f34       ; '4' red on white
+    
+    hlt
+    jmp $
