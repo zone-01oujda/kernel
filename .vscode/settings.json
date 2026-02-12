@@ -1,0 +1,30 @@
+{
+    "material-icon-theme.files.customClones": [
+        {
+            "name": "rust-mod",
+            "base": "rust",
+            "color": "blue-400",
+            "fileNames": [
+                "mod.rs"
+            ]
+        },
+        {
+            "name": "rust-lib",
+            "base": "rust",
+            "color": "light-green-400",
+            "lightColor": "light-green-700",
+            "fileNames": [
+                "lib.rs"
+            ]
+        },
+        {
+            "name": "rust-main",
+            "base": "rust",
+            "color": "red-500",
+            "lightColor": "red-700",
+            "fileNames": [
+                "main.rs"
+            ]
+        },
+    ],
+}
