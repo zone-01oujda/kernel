@@ -60,7 +60,7 @@ gdt_code_64:
     dw 0x0                          ; Base
     db 0x0                          ; Base
     db 10011010b                    ; Access (Code, Readable)
-    db 00100000b                    ; Flags: L=1 (64-bit), G=0
+    db 10101111b                    ; Flags: L=1 (64-bit), G=0
     db 0x0                          ; Base
 
 gdt_data:                           ; The data segment descriptor
