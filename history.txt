@@ -1,0 +1,64 @@
+1  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    2  . "$HOME/.cargo/env" 
+    3  cargo -V
+    4  gcl https://github.com/zone-01oujda/kernel.git
+    5  cd k
+    6  cd kernel
+    7  code .
+    8  ./load.sh
+    9  cargo install x86_64-unknown-none
+   10  rustup target add x86_64-unknown-none
+   11  ./load.sh
+   12  nasm -f bin boot.asm -o boot.bin
+   13  cd
+   14  wget https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/nasm-2.16.01.tar.gz
+   15  ls
+   16  tar -xf nasm-*.tar.gz
+   17  ls
+   18  cd nasm-2.16.01
+   19  ./configure
+   20  make
+   21  make install
+   22  nasm
+   23  make install
+   24  ./configure --prefix=$HOME/local\nmake clean  # Optional, to reset build\nmake\nmake install\n
+   25  nasm
+   26  code ~/.zshrc
+   27  source ~/.zshrc
+   28  nasm
+   29  export PATH="$HOME/local/bin:$PATH"
+   30  nasm
+   31  cd
+   32  export PATH="$HOME/local/bin:$PATH"
+   33  nasm
+   34* nasm -f bin boot.asm -o boot.bin
+   35* nasm -f elf64 boot.asm -o boot.o
+   36* ./run.sh
+   37  cd ~ 
+   38  wget https://download.qemu.org/qemu-9.0.2.tar.xz 
+   39  tar xf qemu-*.tar.xz
+   40  cd qemu-*/
+   41  ./configure --prefix=$HOME/local --disable-system --disable-virtfs --target-list=x86_64-softmmu
+   42  make -j$(nproc)
+   43  make install
+   44  cd ~/local/bin 
+   45  mkdir -p ~/local/bin
+   46  cd ~$
+   47  cd ~
+   48  wget https://github.com/ninja-build/ninja/releases/download/v1.12.1/ninja-linux.zip\nunzip ninja-linux.zip
+   49  mv ninja ~/local/bin/
+   50  chmod +x ~/local/bin/ninja
+   51  ~/local/bin/ninja --version
+   52  python3 -m venv ~/local/pyvenv\nsource ~/local/pyvenv/bin/activate\npip install --upgrade pip meson ninja sphinx tomli\ndeactivate\n
+   53  source ~/.zshrc
+   54  cd ~/qemu-9.0.2
+   55  rm -rf build pyvenv
+   56  ./configure --prefix=$HOME/local --target-list=x86_64-softmmu\nmake -j$(nproc)
+   57  make install
+   58  source ~/.zshrc
+   59  qemu-system-x86_64 --version
+   60  cd
+   61  qemu-system-x86_64 --version
+   62* ./run.sh
+   63* OA
+   64* ./run.sh
