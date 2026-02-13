@@ -1,5 +1,8 @@
 [BITS 16]
-[ORG 0x7c00]
+section .boot
+global start
+
+extern kmain
 
 start:
     cli
@@ -102,6 +105,7 @@ LongModeMain:
     ; Print "64" in Green (0x0A)
     mov rax, 0x0a340a36
     mov [0xb8004], rax  
+    call kmain
     hlt
 
 ; Move the signature to the VERY END of the code
