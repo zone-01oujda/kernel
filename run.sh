@@ -1,12 +1,15 @@
-# 1. Compile your Assembly
+# 1. Compile Assembly to an object file
 nasm -f elf64 boot.asm -o boot.o
 
-# 2. Build the Rust library
-# Cargo will now create: target/x86_64-unknown-none/debug/libkernel.a
-cargo build --target x86_64-unknown-none
+# 2. Compile Rust (pointing to main.rs)
+rustc --target x86_64-unknown-none \
+      --emit obj \
+      -C opt-level=3 \
+      -C code-model=kernel \
+      src/main.rs -o kernel.o
 
-# 3. Use the Linker to merge Assembly + Rust into a raw bootable file
-ld -m elf_x86_64 -T linker.ld boot.o target/x86_64-unknown-none/debug/libkernel.a -o boot.bin
+# 3. Link them together
+ld -m elf_x86_64 -T linker.ld boot.o kernel.o -o boot.bin
 
-# 4. Run it!
+# 4. Run it
 qemu-system-x86_64 -drive format=raw,file=boot.bin

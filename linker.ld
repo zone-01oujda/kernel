@@ -1,32 +1,31 @@
 ENTRY(start)
-OUTPUT_FORMAT("binary") /* We want a flat binary for the final disk image */
+OUTPUT_FORMAT("binary")
 
 SECTIONS
 {
-    /* The BIOS loads us at 0x7c00 */
     . = 0x7c00;
 
     .boot :
     {
-        *(.boot)
+        *(.boot)      /* Your 16-bit asm */
+        *(.text)      /* Your 32/64-bit asm */
     }
 
-    /* Your 32-bit and 64-bit code */
-    .text :
-    {
-        *(.text)
-    }
-
-    /* Move to the end of the boot sector */
+    /* Fill to the end of the first sector */
     . = 0x7c00 + 510;
     .sig :
     {
         SHORT(0xAA55);
     }
 
-    /* Rust kernel code starts right after the boot sector (0x7e00) */
+    /* Rust code starts here (Sector 2 on the disk) */
     .kernel :
     {
-        *(.rodata .data .bss)
+        kernel.o(.text)   /* Specifically pull text from kernel.o */
+        *(.text.*)        /* Pull any other text sections */
+        *(.rodata*)
+        *(.data*)
     }
+
+    /DISCARD/ : { *(.comment) *(.eh_frame) }
 }
