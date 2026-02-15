@@ -1,5 +1,5 @@
 ENTRY(start)
-OUTPUT_FORMAT("binary")
+OUTPUT_FORMAT(elf64-x86-64)
 
 SECTIONS
 {
@@ -7,8 +7,8 @@ SECTIONS
 
     .boot :
     {
-        *(.boot)      /* Your 16-bit asm */
-        *(.text)      /* Your 32/64-bit asm */
+        *(.boot)     
+        *(.text)     
     }
 
     /* Fill to the end of the first sector */
@@ -19,13 +19,15 @@ SECTIONS
     }
 
     /* Rust code starts here (Sector 2 on the disk) */
-    .kernel :
+    . = 0x7e00;
+    .kernel : AT(0x7e00)
     {
-        kernel.o(.text)   /* Specifically pull text from kernel.o */
-        *(.text.*)        /* Pull any other text sections */
+        *(.text)       
+        *(.text.*)     
         *(.rodata*)
         *(.data*)
+        *(.bss*)
     }
 
-    /DISCARD/ : { *(.comment) *(.eh_frame) }
+    /DISCARD/ : { *(.comment) *(.eh_frame) *(.note*) }
 }
