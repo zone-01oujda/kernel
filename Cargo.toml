@@ -9,3 +9,9 @@ edition = "2024"
 name = "kernel"
 test = false
 bench = false
+crate-type = ["staticlib"]
+
+[profile.release]
+panic = "abort"
+lto = true
+code-model = "kernel"

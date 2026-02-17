@@ -22,12 +22,14 @@ KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 OS_IMAGE := boot.bin
 
 # Rust flags
-RUST_FLAGS := --target x86_64-unknown-none \
-              --emit obj \
-              -C opt-level=3 \
-              -C code-model=kernel \
-              -C panic=abort \
-              -C lto=yes
+# RUST_FLAGS 	:= --target x86_64-unknown-none \
+#               --emit obj \
+#               -C opt-level=3 \
+#               -C code-model=kernel \
+#               -C panic=abort \
+#               -C lto=yes
+TARGET 		:= x86_64-unknown-none
+CARGO_OBJ 	:= target/$(TARGET)/release/libkernel.a
 
 # Linker flags
 LD_FLAGS := -m elf_x86_64 -T $(LINKER) -Map $(BUILD_DIR)/kernel.map
@@ -49,9 +51,10 @@ $(BOOT_OBJ): $(BOOT_ASM) | $(BUILD_DIR)
 	@echo "$(YELLOW)→ Assembling bootloader...$(NC)"
 	$(ASM) -f elf64 $< -o $@
 
-$(KERNEL_OBJ): $(KERNEL_RS) | $(BUILD_DIR)
-	@echo "$(YELLOW)→ Compiling Rust kernel...$(NC)"
-	$(CC) $(RUST_FLAGS) $< -o $@
+$(KERNEL_OBJ):
+	@echo "$(YELLOW)→ Compiling Rust kernel with Cargo...$(NC)"
+	cargo build --release --target $(TARGET)
+	cp $(CARGO_OBJ) $(KERNEL_OBJ)
 
 $(KERNEL_ELF): $(BOOT_OBJ) $(KERNEL_OBJ) $(LINKER)
 	@echo "$(YELLOW)→ Linking kernel...$(NC)"
