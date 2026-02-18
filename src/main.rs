@@ -1,45 +1,27 @@
 #![no_std]
 #![no_main]
 
+pub mod spin;
+pub use spin::*;
+pub mod vga;
+pub use vga::*;
+pub mod macros;
+pub use macros::*;
+
 use core::panic::PanicInfo;
 
-use kernel::spin::Spinlock;
-
-pub struct VgaWriter {
-    column: usize,
-    buf: *mut u16,
-}
-
-impl VgaWriter {
-    pub fn write_byte(&mut self, byte: u8, color: u8) {
-        if self.column < 80 * 25 {
-            let ch = (color as u16) << 8 | (byte as u16);
-            unsafe {
-                self.buf.add(self.column).write_volatile(ch);
-            }
-            self.column += 1;
-        }
-    }
-}
-
-pub static WRITER: Spinlock<VgaWriter> = Spinlock::new(VgaWriter {
-    column: 0,
-    buf: 0xb8000 as *mut u16,
-});
-
-static HELLO: &[u8] = b"Hello World\n";
+static HELLO: &[u8] = b"Hello Worldddd\n";
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain() -> ! {
-    let mut vga = WRITER.lock();
-    vga.write_byte(b'R', 0xf);
-    // let vga_buffer = 0xb8000 as *mut u8;
-    // for (i, &byte) in HELLO.iter().enumerate() {
-    //     unsafe {
-    //         *vga_buffer.offset(i as isize * 2) = byte;
-    //         *vga_buffer.offset(i as isize * 2 + 1) = 0xf;
-    //     }
-    // }
+    // Clear any potential garbage from the bootloader first
+    println!("System Booting...");
+    println!("VGA Buffer: 0x{:x}", 0xb8000);
+    
+    for i in 0..10 {
+        println!("Line number: {}", i);
+    }
+
     loop {}
 }
 

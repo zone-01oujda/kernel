@@ -1,9 +1,11 @@
 # Toolchain
 ASM      := nasm
-CC       := rustc
 LD       := ld
 QEMU     := qemu-system-x86_64
 OBJCOPY  := objcopy
+
+# Target Triple
+TARGET   := x86_64-unknown-none
 
 # Directories
 BOOT_DIR := boot
@@ -12,29 +14,20 @@ BUILD_DIR := build
 
 # Files
 BOOT_ASM := $(BOOT_DIR)/boot.asm
-KERNEL_RS := $(SRC_DIR)/main.rs
 LINKER   := linker.ld
 
-# Object files (with build directory)
+# Object and Library files
 BOOT_OBJ := $(BUILD_DIR)/boot.o
-KERNEL_OBJ := $(BUILD_DIR)/kernel.o
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
+# This is the static library produced by Cargo (crate-type = ["staticlib"])
+KERNEL_LIB_CARGO := target/$(TARGET)/release/libkernel.a
 OS_IMAGE := boot.bin
 
-# Rust flags
-# RUST_FLAGS 	:= --target x86_64-unknown-none \
-#               --emit obj \
-#               -C opt-level=3 \
-#               -C code-model=kernel \
-#               -C panic=abort \
-#               -C lto=yes
-TARGET 		:= x86_64-unknown-none
-CARGO_OBJ 	:= target/$(TARGET)/release/libkernel.a
-
 # Linker flags
+# We link the bootloader object and the Rust static library together
 LD_FLAGS := -m elf_x86_64 -T $(LINKER) -Map $(BUILD_DIR)/kernel.map
 
-# Colors (optional - remove if you don't want colors)
+# Colors for output
 GREEN := \033[0;32m
 YELLOW := \033[1;33m
 NC := \033[0m
@@ -47,19 +40,22 @@ all: $(BUILD_DIR) $(OS_IMAGE)
 $(BUILD_DIR):
 	mkdir -p $@
 
+# Rule to assemble the bootloader
 $(BOOT_OBJ): $(BOOT_ASM) | $(BUILD_DIR)
 	@echo "$(YELLOW)→ Assembling bootloader...$(NC)"
 	$(ASM) -f elf64 $< -o $@
 
-$(KERNEL_OBJ):
+# Rule to compile the Rust kernel into a static library
+$(KERNEL_LIB_CARGO):
 	@echo "$(YELLOW)→ Compiling Rust kernel with Cargo...$(NC)"
 	cargo build --release --target $(TARGET)
-	cp $(CARGO_OBJ) $(KERNEL_OBJ)
 
-$(KERNEL_ELF): $(BOOT_OBJ) $(KERNEL_OBJ) $(LINKER)
-	@echo "$(YELLOW)→ Linking kernel...$(NC)"
-	$(LD) $(LD_FLAGS) $(BOOT_OBJ) $(KERNEL_OBJ) -o $@
+# Rule to link bootloader and Rust library into an ELF file
+$(KERNEL_ELF): $(BOOT_OBJ) $(KERNEL_LIB_CARGO) $(LINKER)
+	@echo "$(YELLOW)→ Linking kernel with bootloader...$(NC)"
+	$(LD) $(LD_FLAGS) $(BOOT_OBJ) $(KERNEL_LIB_CARGO) -o $@
 
+# Rule to create the final bootable binary image
 $(OS_IMAGE): $(KERNEL_ELF)
 	@echo "$(YELLOW)→ Creating boot image...$(NC)"
 	$(OBJCOPY) -O binary $< $@
@@ -69,7 +65,9 @@ run: $(OS_IMAGE)
 	$(QEMU) -drive format=raw,file=$(OS_IMAGE)
 
 clean:
+	@echo "$(YELLOW)→ Cleaning project...$(NC)"
 	rm -rf $(BUILD_DIR) $(OS_IMAGE)
+	cargo clean
 	@echo "$(GREEN)✓ Clean complete$(NC)"
 
 .DEFAULT_GOAL := all
