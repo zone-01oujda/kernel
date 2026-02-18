@@ -12,6 +12,7 @@ pub struct VgaWriter {
     pub row: usize,
     pub column: usize,
     pub buf: *mut u16,
+    pub color: u8,
 }
 
 impl VgaWriter {
@@ -35,32 +36,25 @@ impl VgaWriter {
         if self.row < VGA_HEIGHT - 1 {
             self.row += 1;
         } else {
-            // self.scroll()
+            self.scroll()
         }
     }
 
     fn scroll(&mut self) {
         unsafe {
-            for y in 1..VGA_HEIGHT {
-                for x in 0..VGA_WIDTH {
-                    let src_idx = y * VGA_WIDTH + x;
-                    let dst_idx = (y - 1) * VGA_WIDTH + x;
+            let count = VGA_WIDTH * (VGA_HEIGHT - 1);
+            let src = self.buf.add(VGA_WIDTH);
+            let dst = self.buf;
 
-                    let character = self.buf.add(src_idx).read_volatile();
-                    self.buf.add(dst_idx).write_volatile(character);
-                }
-            }
+            core::ptr::copy_nonoverlapping(src, dst, count);
 
-            // 2. Clear the last row.
             let blank = (DEFAULT_COLOR as u16) << 8 | (b' ' as u16);
             let last_row_start = (VGA_HEIGHT - 1) * VGA_WIDTH;
-
             for x in 0..VGA_WIDTH {
                 self.buf.add(last_row_start + x).write_volatile(blank);
             }
         }
 
-        // 3. Reset position to the start of the last line
         self.row = VGA_HEIGHT - 1;
         self.column = 0;
     }
@@ -72,7 +66,7 @@ impl Write for VgaWriter {
             if byte == b'\n' {
                 self.new_line()
             } else {
-                self.write_byte(byte, 0xf);
+                self.write_byte(byte, self.color);
             }
         }
         Ok(())
@@ -83,10 +77,21 @@ pub static WRITER: Spinlock<VgaWriter> = Spinlock::new(VgaWriter {
     row: 0,
     column: 0,
     buf: 0xb8000 as *mut u16,
+    color: DEFAULT_COLOR,
 });
 
 #[doc(hidden)]
-pub fn _print(args: Arguments) {
+pub fn _print(args: Arguments, color: u8) {
     use core::fmt::Write;
-    WRITER.lock().write_fmt(args).unwrap();
+    let mut writer = WRITER.lock();
+    writer.color = color;
+    writer.write_fmt(args).unwrap();
+}
+
+
+pub enum Color {
+    Success = 0x02,
+    Warning = 0x0e,
+    Error = 0x04,
+    Info = 0x0f,
 }
