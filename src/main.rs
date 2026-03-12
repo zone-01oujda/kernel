@@ -20,6 +20,14 @@ pub extern "C" fn kmain() -> ! {
     vga::clear_screen();
     println!("Welcome to your Linux-style Kernel!");
     print_info!("> ");
+    fn over() -> u32 {
+        if 1 != 1 {
+            return 5;
+        }
+            println!("2");
+        over()
+    }
+    over();
     loop {}
 }
 

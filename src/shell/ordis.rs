@@ -1,3 +1,4 @@
+use crate::drivers::ps2_kbd;
 use crate::print_info;
 use crate::println;
 use crate::sync::Spinlock;
@@ -77,7 +78,7 @@ impl KShell {
             }
             b"reboot" => {
                 println!("System rebooting...");
-                
+                ps2_kbd::reboot()
             }
             _ => {
                 println!("Error: Command not found.");
@@ -91,6 +92,4 @@ impl KShell {
         }
         println!("");
     }
-
-
 }

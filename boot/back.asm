@@ -33,10 +33,6 @@ start:
     
     jmp 0x08:PModeMain 
 
-; --- Get Memory Map (E820) ---
-
-
-
 ; ================ 32-bit GDT ================
 align 16
 gdt_start:

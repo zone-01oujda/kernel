@@ -1,4 +1,5 @@
 use crate::shell;
+use core::arch::asm;
 
 pub fn handle_interrupt() {
     unsafe {
@@ -77,7 +78,11 @@ pub fn handle_interrupt() {
     }
 }
 
-
 pub fn reboot() {
-    asm!
+    unsafe { asm!("out 0x64, al", in("al") 0xFEu8) }
+    loop {
+        unsafe {
+            asm!("hlt");
+        }
+    }
 }
